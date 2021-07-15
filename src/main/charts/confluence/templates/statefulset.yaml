@@ -21,16 +21,30 @@ spec:
     spec:
       serviceAccountName: {{ include "confluence.serviceAccountName" . }}
       terminationGracePeriodSeconds: 1
-{{ if .Values.confluence.securityContext.enabled }}
+      {{ if .Values.confluence.securityContext.enabled }}
       securityContext:
         # This is intended to ensure that the shared-home volume is group-writeable by the GID used by the Confluence container.
         # However, this doesn't appear to work for NFS volumes due to a K8s bug: https://github.com/kubernetes/examples/issues/260
         fsGroup: {{ .Values.confluence.securityContext.gid }}
-{{ end }}
-      {{- with .Values.additionalInitContainers }}
+      {{ end }}
+      hostAliases:
+        {{- include "confluence.additionalHosts" . | nindent 8 }}
       initContainers:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- include "confluence.additionalInitContainers" . | nindent 8 }}
+        {{- if .Values.volumes.sharedHome.nfsPermissionFixer.enabled }}
+        - name: nfs-permission-fixer
+          image: alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0 # make sure we run as root so we get the ability to change the volume permissions
+          volumeMounts:
+            - name: shared-home
+              mountPath: {{ .Values.volumes.sharedHome.nfsPermissionFixer.mountPath | quote }}
+              {{- if .Values.volumes.sharedHome.subPath }}
+              subPath: {{ .Values.volumes.sharedHome.subPath | quote }}
+              {{- end }}
+          command: ["sh", "-c", {{ include "sharedHome.permissionFix.command" . | quote }}]
+        {{- end }}
       containers:
         - name: confluence
           image: {{ include "confluence.image" . | quote }}
@@ -45,7 +59,7 @@ spec:
           readinessProbe:
             httpGet:
               port: {{ .Values.confluence.ports.http }}
-              path: /status
+              path: {{ .Values.confluence.service.contextPath }}/status
             initialDelaySeconds: {{ .Values.confluence.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.confluence.readinessProbe.periodSeconds }}
             failureThreshold: {{ .Values.confluence.readinessProbe.failureThreshold }}
@@ -55,11 +69,14 @@ spec:
           {{- end }}
           volumeMounts:
             {{- include "confluence.volumeMounts" . | nindent 12 }}
-            {{- with .Values.confluence.additionalVolumeMounts }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
+            {{- include "confluence.additionalVolumeMounts" . | nindent 12 }}
             {{- include "confluence.additionalLibraries" . | nindent 12 }}
             {{- include "confluence.additionalBundledPlugins" . | nindent 12 }}
+            {{- range $i, $n := .Values.additionalFiles }}
+            - name: {{ .name }}-{{$i}}
+              mountPath: {{ .mountPath }}/{{ .key }}
+              subPath: {{ .key }}
+            {{ end }}
           env:
             {{ if .Values.ingress.https }}
             - name: ATL_TOMCAT_SCHEME
@@ -67,12 +84,16 @@ spec:
             - name: ATL_TOMCAT_SECURE
               value: "true"
             {{ end }}
+            {{ if .Values.confluence.service.contextPath }}
+            - name: ATL_TOMCAT_CONTEXTPATH
+              value: {{ .Values.confluence.service.contextPath | quote }}
+            {{ end }}
             - name: ATL_TOMCAT_ACCESS_LOG
               value: {{ .Values.confluence.accessLog.enabled | quote }}
             - name: UMASK
               value: {{ .Values.confluence.umask | quote }}
             - name: SET_PERMISSIONS
-              value: "false"
+              value: {{ .Values.confluence.setPermissions | quote }}
             - name: ATL_PRODUCT_HOME_SHARED
               value: {{ .Values.volumes.sharedHome.mountPath | quote }}
             - name: JVM_SUPPORT_RECOMMENDED_ARGS
@@ -104,13 +125,9 @@ spec:
                 configMapKeyRef:
                   key: reserved_code_cache
                   name: {{ include "confluence.fullname" . }}-jvm-config
-            {{- with .Values.confluence.additionalEnvironmentVariables }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
+            {{- include "confluence.additionalEnvironmentVariables" . | nindent 12 }}
         {{- include "fluentd.container" . | nindent 8 }}
-        {{- with .Values.additionalContainers }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- include "confluence.additionalContainers" . | nindent 8 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}
@@ -124,6 +141,14 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+        {{- range $i, $n := .Values.additionalFiles }}
+        - name: {{ .name }}-{{$i}}
+          {{ .type }}:
+            {{ if hasPrefix .type "secret" }}{{ .type}}Name{{ else }}name{{ end }}: {{ .name }}
+            items:
+              - key: {{ .key }}
+                path: {{ .key }}
+        {{ end }}
         {{ include "confluence.volumes" . | nindent 8 }}
         {{ include "fluentd.config.volume" . | nindent 8 }}
   {{ include "confluence.volumeClaimTemplates" . | nindent 2 }}

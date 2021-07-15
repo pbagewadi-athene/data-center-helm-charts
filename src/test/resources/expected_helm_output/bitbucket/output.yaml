@@ -5,10 +5,10 @@ kind: ServiceAccount
 metadata:
   name: unittest-bitbucket
   labels:
-    helm.sh/chart: bitbucket-0.1.0
+    helm.sh/chart: bitbucket-0.12.0
     app.kubernetes.io/name: bitbucket
     app.kubernetes.io/instance: unittest-bitbucket
-    app.kubernetes.io/version: "7.7.0-jdk11"
+    app.kubernetes.io/version: "7.12.1-jdk11"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: bitbucket/templates/config-jvm.yaml
@@ -17,15 +17,16 @@ kind: ConfigMap
 metadata:
   name: unittest-bitbucket-jvm-config
   labels:
-    helm.sh/chart: bitbucket-0.1.0
+    helm.sh/chart: bitbucket-0.12.0
     app.kubernetes.io/name: bitbucket
     app.kubernetes.io/instance: unittest-bitbucket
-    app.kubernetes.io/version: "7.7.0-jdk11"
+    app.kubernetes.io/version: "7.12.1-jdk11"
     app.kubernetes.io/managed-by: Helm
 data:
   additional_jvm_args: >-
+    -XX:ActiveProcessorCount=2
   max_heap: 1g
-  min_heap: 1g
+  min_heap: 512m
 ---
 # Source: bitbucket/templates/service.yaml
 apiVersion: v1
@@ -33,11 +34,12 @@ kind: Service
 metadata:
   name: unittest-bitbucket
   labels:
-    helm.sh/chart: bitbucket-0.1.0
+    helm.sh/chart: bitbucket-0.12.0
     app.kubernetes.io/name: bitbucket
     app.kubernetes.io/instance: unittest-bitbucket
-    app.kubernetes.io/version: "7.7.0-jdk11"
+    app.kubernetes.io/version: "7.12.1-jdk11"
     app.kubernetes.io/managed-by: Helm
+  annotations:
 spec:
   type: ClusterIP
   ports:
@@ -63,13 +65,17 @@ kind: StatefulSet
 metadata:
   name: unittest-bitbucket
   labels:
-    helm.sh/chart: bitbucket-0.1.0
+    helm.sh/chart: bitbucket-0.12.0
     app.kubernetes.io/name: bitbucket
     app.kubernetes.io/instance: unittest-bitbucket
-    app.kubernetes.io/version: "7.7.0-jdk11"
+    app.kubernetes.io/version: "7.12.1-jdk11"
     app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
   serviceName: unittest-bitbucket
   selector:
     matchLabels:
@@ -87,9 +93,19 @@ spec:
         # This is intended to ensure that the shared-home volume is group-writeable by the GID used by the Bitbucket container.
         # However, this doesn't appear to work for NFS volumes due to a K8s bug: https://github.com/kubernetes/examples/issues/260
         fsGroup: 2003 # Makes sure that the shared-home volume mount is writeable by the bitbucket user's GID
+      initContainers:
+        - name: nfs-permission-fixer
+          image: alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0 # make sure we run as root so we get the ability to change the volume permissions
+          volumeMounts:
+            - name: shared-home
+              mountPath: "/shared-home"
+          command: ["sh", "-c", "(chgrp 2003 /shared-home; chmod g+w /shared-home)"]
       containers:
         - name: bitbucket
-          image: "atlassian/bitbucket-server:7.7.0-jdk11"
+          image: "atlassian/bitbucket-server:7.12.1-jdk11"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -113,7 +129,15 @@ spec:
               mountPath: "/var/atlassian/application-data/bitbucket"
             - name: shared-home
               mountPath: "/var/atlassian/application-data/shared-home"
+          resources:
+            requests:
+              cpu: "2"
+              memory: 2G
           env:
+            - name: KUBE_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: SERVER_SCHEME
               value: "https"
             - name: SERVER_SECURE
@@ -150,10 +174,10 @@ metadata:
     "helm.sh/hook": test
     "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
   labels:
-    helm.sh/chart: bitbucket-0.1.0
+    helm.sh/chart: bitbucket-0.12.0
     app.kubernetes.io/name: bitbucket
     app.kubernetes.io/instance: unittest-bitbucket
-    app.kubernetes.io/version: "7.7.0-jdk11"
+    app.kubernetes.io/version: "7.12.1-jdk11"
     app.kubernetes.io/managed-by: Helm
 spec:
   containers:
@@ -182,10 +206,10 @@ metadata:
     "helm.sh/hook": test
     "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
   labels:
-    helm.sh/chart: bitbucket-0.1.0
+    helm.sh/chart: bitbucket-0.12.0
     app.kubernetes.io/name: bitbucket
     app.kubernetes.io/instance: unittest-bitbucket
-    app.kubernetes.io/version: "7.7.0-jdk11"
+    app.kubernetes.io/version: "7.12.1-jdk11"
     app.kubernetes.io/managed-by: Helm
 spec:
   containers:

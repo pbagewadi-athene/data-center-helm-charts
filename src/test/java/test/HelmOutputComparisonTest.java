@@ -27,12 +27,13 @@ class HelmOutputComparisonTest {
 
     /**
      * For each product, this test executes "helm template" and captures the output, comparing it against an expectation file.
-     * his means that every time the Helm charts change, we need to change the expectation files.
+     * This means that every time the Helm charts change, we need to change the expectation files.
      */
     @ParameterizedTest
     @EnumSource(Product.class)
     void helm_template_output_matches_expectations(final Product product) throws Exception {
         final var expectedHelmOutput = getExpectedHelmTemplateOutputFile(product);
+        stripBlankLines(expectedHelmOutput);
 
         final var actualOutputFile = helm.captureHelmTemplateOutput(product, getHelmValuesFile(product));
 

@@ -149,6 +149,16 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 -Datlassian.logging.cloud.enabled={{.Values.fluentd.enabled}}
 {{- end }}
 
+{{- define "confluence.sysprop.debug" -}}
+{{- if .Values.confluence.jvmDebug.enabled -}}
+-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005
+{{- end }}
+{{- end }}
+
+{{- define "confluence.sysprop.enable.synchrony.by.default" -}}
+-Dsynchrony.by.default.enable.collab.editing.if.manually.managed=true
+{{- end -}}
+
 {{- define "confluence.sysprop.synchronyServiceUrl" -}}
 {{- if .Values.synchrony.enabled -}}
 -Dsynchrony.service.url={{ .Values.synchrony.ingressUrl }}/v1
@@ -198,7 +208,7 @@ on Tomcat's logs directory. THis ensures that Tomcat+Confluence logs get capture
 For each additional library declared, generate a volume mount that injects that library into the Confluence lib directory
 */}}
 {{- define "confluence.additionalLibraries" -}}
-{{- range .Values.confluence.additionalLibraries -}}
+{{- range .Values.confluence.additionalLibraries }}
 - name: {{ .volumeName }}
   mountPath: "/opt/atlassian/confluence/confluence/WEB-INF/lib/{{ .fileName }}"
   {{- if .subDirectory }}
@@ -210,10 +220,69 @@ For each additional library declared, generate a volume mount that injects that 
 {{- end }}
 
 {{/*
+For each additional Synchrony library declared, generate a volume mount that injects that library into the Confluence lib directory
+*/}}
+{{- define "synchrony.additionalLibraries" -}}
+{{- range .Values.synchrony.additionalLibraries }}
+- name: {{ .volumeName }}
+  mountPath: "/opt/atlassian/confluence/confluence/WEB-INF/lib/{{ .fileName }}"
+  {{- if .subDirectory }}
+  subPath: {{ printf "%s/%s" .subDirectory .fileName | quote }}
+  {{- else }}
+  subPath: {{ .fileName | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional init containers here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "confluence.additionalInitContainers" -}}
+{{- with .Values.additionalInitContainers }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional hosts here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "confluence.additionalHosts" -}}
+{{- range .Values.additionalHosts }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional containers here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "confluence.additionalContainers" -}}
+{{- with .Values.additionalContainers }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional volume mounts here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "confluence.additionalVolumeMounts" -}}
+{{- with .Values.confluence.additionalVolumeMounts }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional environment variables here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "confluence.additionalEnvironmentVariables" -}}
+{{- with .Values.confluence.additionalEnvironmentVariables }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
 For each additional plugin declared, generate a volume mount that injects that library into the Confluence plugins directory
 */}}
 {{- define "confluence.additionalBundledPlugins" -}}
-{{- range .Values.confluence.additionalBundledPlugins -}}
+{{- range .Values.confluence.additionalBundledPlugins }}
 - name: {{ .volumeName }}
   mountPath: "/opt/atlassian/confluence/confluence/WEB-INF/atlassian-bundled-plugins/{{ .fileName }}"
   {{- if .subDirectory }}

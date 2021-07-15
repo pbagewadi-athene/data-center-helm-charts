@@ -2,15 +2,12 @@
 
 confluence:
   clustering:
-    enabled: true
+    enabled: ${clustering.enabled}
   license:
     secretName: confluence-license
   additionalJvmArgs:
     - -Datlassian.allow.insecure.url.parameter.login=true
-  resources:
-    container:
-      requests:
-        memory: 2G
+    - -XX:ActiveProcessorCount=2
   accessLog:
     enabled: true
 

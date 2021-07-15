@@ -5,10 +5,10 @@ kind: ServiceAccount
 metadata:
   name: unittest-jira
   labels:
-    helm.sh/chart: jira-0.1.0
+    helm.sh/chart: jira-0.12.0
     app.kubernetes.io/name: jira
     app.kubernetes.io/instance: unittest-jira
-    app.kubernetes.io/version: "8.13.0-jdk11"
+    app.kubernetes.io/version: "8.13.7-jdk11"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: jira/templates/config-jvm.yaml
@@ -17,16 +17,17 @@ kind: ConfigMap
 metadata:
   name: unittest-jira-jvm-config
   labels:
-    helm.sh/chart: jira-0.1.0
+    helm.sh/chart: jira-0.12.0
     app.kubernetes.io/name: jira
     app.kubernetes.io/instance: unittest-jira
-    app.kubernetes.io/version: "8.13.0-jdk11"
+    app.kubernetes.io/version: "8.13.7-jdk11"
     app.kubernetes.io/managed-by: Helm
 data:
   additional_jvm_args: >-
     -Datlassian.logging.cloud.enabled=false
-  max_heap: 1g
-  min_heap: 1g
+    -XX:ActiveProcessorCount=2
+  max_heap: 768m
+  min_heap: 384m
   reserved_code_cache: 512m
 ---
 # Source: jira/templates/service.yaml
@@ -35,10 +36,10 @@ kind: Service
 metadata:
   name: unittest-jira
   labels:
-    helm.sh/chart: jira-0.1.0
+    helm.sh/chart: jira-0.12.0
     app.kubernetes.io/name: jira
     app.kubernetes.io/instance: unittest-jira
-    app.kubernetes.io/version: "8.13.0-jdk11"
+    app.kubernetes.io/version: "8.13.7-jdk11"
     app.kubernetes.io/managed-by: Helm
 spec:
   type: ClusterIP
@@ -57,10 +58,10 @@ kind: StatefulSet
 metadata:
   name: unittest-jira
   labels:
-    helm.sh/chart: jira-0.1.0
+    helm.sh/chart: jira-0.12.0
     app.kubernetes.io/name: jira
     app.kubernetes.io/instance: unittest-jira
-    app.kubernetes.io/version: "8.13.0-jdk11"
+    app.kubernetes.io/version: "8.13.7-jdk11"
     app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 1
@@ -81,9 +82,19 @@ spec:
         # This is intended to ensure that the shared-home volume is group-writeable by the GID used by the Jira container.
         # However, this doesn't appear to work for NFS volumes due to a K8s bug: https://github.com/kubernetes/examples/issues/260
         fsGroup: 2001
+      initContainers:
+        - name: nfs-permission-fixer
+          image: alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0 # make sure we run as root so we get the ability to change the volume permissions
+          volumeMounts:
+            - name: shared-home
+              mountPath: "/shared-home"
+          command: ["sh", "-c", "(chgrp 2001 /shared-home; chmod g+w /shared-home)"]
       containers:
         - name: jira
-          image: "atlassian/jira-software:8.13.0-jdk11"
+          image: "atlassian/jira-software:8.13.7-jdk11"
           imagePullPolicy: IfNotPresent
           env:
             - name: ATL_TOMCAT_SCHEME
@@ -116,6 +127,12 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+            - name: ehcache
+              containerPort: 40001 
+              protocol: TCP 
+            - name: ehcacheobject
+              containerPort: 40011
+              protocol: TCP
           readinessProbe:
             httpGet:
               port: 8080
@@ -123,6 +140,10 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 30
+          resources:
+            requests:
+              cpu: "2"
+              memory: 2G
           volumeMounts:
             - name: local-home
               mountPath: "/var/atlassian/application-data/jira"
@@ -146,10 +167,10 @@ metadata:
     "helm.sh/hook": test
     "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
   labels:
-    helm.sh/chart: jira-0.1.0
+    helm.sh/chart: jira-0.12.0
     app.kubernetes.io/name: jira
     app.kubernetes.io/instance: unittest-jira
-    app.kubernetes.io/version: "8.13.0-jdk11"
+    app.kubernetes.io/version: "8.13.7-jdk11"
     app.kubernetes.io/managed-by: Helm
 spec:
   containers:
@@ -178,10 +199,10 @@ metadata:
     "helm.sh/hook": test
     "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
   labels:
-    helm.sh/chart: jira-0.1.0
+    helm.sh/chart: jira-0.12.0
     app.kubernetes.io/name: jira
     app.kubernetes.io/instance: unittest-jira
-    app.kubernetes.io/version: "8.13.0-jdk11"
+    app.kubernetes.io/version: "8.13.7-jdk11"
     app.kubernetes.io/managed-by: Helm
 spec:
   containers:

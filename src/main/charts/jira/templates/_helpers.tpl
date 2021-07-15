@@ -34,6 +34,24 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
+Create default value for ingress port
+*/}}
+{{- define "jira.ingressPort" -}}
+{{ default (ternary "443" "80" .Values.ingress.https) .Values.ingress.port -}}
+{{- end }}
+
+{{/*
+Create default value for ingress path
+*/}}
+{{- define "jira.ingressPath" -}}
+{{- if .Values.ingress.path -}}
+{{- .Values.ingress.path -}}
+{{- else -}}
+{{ default ( "/" ) .Values.jira.service.contextPath -}}
+{{- end }}
+{{- end }}
+
+{{/*
 The name of the service account to be used.
 If the name is defined in the chart values, then use that,
 else if we're creating a new service account then use the name of the Helm release,
@@ -112,10 +130,46 @@ on Tomcat's logs directory. THis ensures that Tomcat+Jira logs get captured in t
 {{- end }}
 
 {{/*
+Defining additional init containers here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "jira.additionalInitContainers" -}}
+{{- with .Values.additionalInitContainers }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional containers here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "jira.additionalContainers" -}}
+{{- with .Values.additionalContainers }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional volume mounts here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "jira.additionalVolumeMounts" -}}
+{{- with .Values.jira.additionalVolumeMounts }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional environment variables here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "jira.additionalEnvironmentVariables" -}}
+{{- with .Values.jira.additionalEnvironmentVariables }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
 For each additional library declared, generate a volume mount that injects that library into the Jira lib directory
 */}}
 {{- define "jira.additionalLibraries" -}}
-{{- range .Values.jira.additionalLibraries -}}
+{{- range .Values.jira.additionalLibraries }}
 - name: {{ .volumeName }}
   mountPath: "/opt/atlassian/jira/lib/{{ .fileName }}"
   {{- if .subDirectory }}
@@ -130,7 +184,7 @@ For each additional library declared, generate a volume mount that injects that 
 For each additional plugin declared, generate a volume mount that injects that library into the Jira plugins directory
 */}}
 {{- define "jira.additionalBundledPlugins" -}}
-{{- range .Values.jira.additionalBundledPlugins -}}
+{{- range .Values.jira.additionalBundledPlugins }}
 - name: {{ .volumeName }}
   mountPath: "/opt/atlassian/jira/atlassian-jira/WEB-INF/atlassian-bundled-plugins/{{ .fileName }}"
   {{- if .subDirectory }}

@@ -1,16 +1,41 @@
 apiVersion: v2
 name: confluence
-description: A chart for installing Confluence DC on Kubernetes
+description: A chart for installing Confluence Data Center on Kubernetes
 type: application
-version: 0.1.0
-appVersion: 7.9.0-jdk11
-kubeVersion: ">=1.17.x-0"
+version: 0.12.0
+appVersion: 7.12.2-jdk11
+kubeVersion: ">=1.19.x-0"
 keywords:
   - Confluence
   - Confluence Server
   - Confluence Data Center
+  - Confluence DC
   - Atlassian
-home: https://github.com/atlassian-labs/data-center-helm-charts
+home: https://www.atlassian.com/software/confluence
+icon: https://atlassian-labs.github.io/data-center-helm-charts/icons/confluence.svg
 sources:
   - https://github.com/atlassian-labs/data-center-helm-charts
+  - https://bitbucket.org/atlassian-docker/docker-atlassian-confluence-server/
 deprecated: false
+annotations:
+  artifacthub.io/changes: |
+    - kind: fixed
+      description: Increase the timeout for /bootstrap endpoints in the same way as for /setup to avoid the ingress timeout
+      links:
+      - name: Github PR
+        url: https://github.com/atlassian-labs/data-center-helm-charts/pull/194
+    - kind: added
+      description: Defining the following values in the helpers template for each chart, to allow template overrides
+      links:
+      - name: Github PR
+        url: https://github.com/atlassian-labs/data-center-helm-charts/pull/173
+    - kind: fixed
+      description: Wording improvement for warning in NOTES when PV is not used
+      links:
+      - name: Github PR
+        url: https://github.com/atlassian-labs/data-center-helm-charts/pull/199
+    - kind: fixed
+      description: Improve readability of values.yaml
+      links:
+      - name: Github PR
+        url: https://github.com/atlassian-labs/data-center-helm-charts/pull/182

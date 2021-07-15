@@ -132,10 +132,46 @@ The command that should be run by the nfs-fixer init container to correct the pe
 {{- end }}
 
 {{/*
+Defining additional init containers here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "bitbucket.additionalInitContainers" -}}
+{{- with .Values.additionalInitContainers }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional containers here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "bitbucket.additionalContainers" -}}
+{{- with .Values.additionalContainers }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional volume mounts here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "bitbucket.additionalVolumeMounts" -}}
+{{- with .Values.bitbucket.additionalVolumeMounts }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Defining additional environment variables here instead of in values.yaml to allow template overrides
+*/}}
+{{- define "bitbucket.additionalEnvironmentVariables" -}}
+{{- with .Values.bitbucket.additionalEnvironmentVariables }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
 For each additional library declared, generate a volume mount that injects that library into the Bitbucket lib directory
 */}}
 {{- define "bitbucket.additionalLibraries" -}}
-{{- range .Values.bitbucket.additionalLibraries -}}
+{{- range .Values.bitbucket.additionalLibraries }}
 - name: {{ .volumeName }}
   mountPath: "/opt/atlassian/bitbucket/app/WEB-INF/lib/{{ .fileName }}"
   {{- if .subDirectory }}
@@ -150,7 +186,7 @@ For each additional library declared, generate a volume mount that injects that 
 For each additional plugin declared, generate a volume mount that injects that library into the Bitbucket plugins directory
 */}}
 {{- define "bitbucket.additionalBundledPlugins" -}}
-{{- range .Values.bitbucket.additionalBundledPlugins -}}
+{{- range .Values.bitbucket.additionalBundledPlugins }}
 - name: {{ .volumeName }}
   mountPath: "/opt/atlassian/bitbucket/app/WEB-INF/atlassian-bundled-plugins/{{ .fileName }}"
   {{- if .subDirectory }}

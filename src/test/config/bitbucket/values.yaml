@@ -8,19 +8,17 @@ database:
 
 bitbucket:
   clustering:
-    enabled: true
+    enabled: ${clustering.enabled}
   license:
     secretName: bitbucket-license
   sysadminCredentials:
     secretName: bitbucket-sysadmin-credentials
   additionalJvmArgs:
     - -Dfeature.getting.started.page=false
+    - -XX:ActiveProcessorCount=2
   resources:
     container:
       requests:
         memory: 3G
 
-fluentd:
-  enabled: true
-  elasticsearch:
-    hostname: elasticsearch-master
+
